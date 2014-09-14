@@ -1,0 +1,17 @@
+<ul class="nav">
+  <% if user_signed_in? %>
+    <li>
+      <%= link_to 'Logout', destroy_user_session_path, :method=>'delete' %>
+    </li>
+    <li>
+      <%= link_to 'Subscribe', subscribe_user_path(current_user), :method => :post, :remote => true %>
+      <%= link_to 'Unsubscribe', unsubscribe_user_path(current_user), :method => :post, :remote => true %>
+    </li>
+  <% else %>
+    <li>
+    <%= link_to 'Login', new_user_session_path %>
+    </li>
+  <% end %> 
+
+  
+</ul>

@@ -1,0 +1,59 @@
+.presence-animation .user-list {
+    list-style: none outside none;
+    margin: 0;
+    padding: 0;
+}
+.presence-animation .user-list li {
+    border-bottom: 1px solid #cecece;
+    padding: 20px;
+}
+
+.presence-animation .user-list li:before, .presence-animation .user-list li:after {
+    content: " ";
+    display: table;
+}
+.presence-animation .user-list li:after {
+    clear: both;
+}
+.presence-animation .user-list li:last-of-type {
+    border: medium none;
+}
+.presence-animation .user-list img {
+    float: left;
+}
+.presence-animation .user-list .content {
+    float: left;
+    padding: 7px 0 0 20px;
+    position: relative;
+}
+.presence-animation .user-list .content h6 {
+    margin: 0;
+}
+.presence-animation .user-list .content small {
+    background: none repeat scroll 0 0 #f9f9f9;
+    color: #aaa;
+    left: 20px;
+    position: absolute;
+}
+.presence-animation .user-list .point {
+    float: right;
+    margin: 10px 0 0;
+}
+
+.presence-animation .point:after {
+    display: none;
+}
+
+.presence-animation .point {
+    background: none repeat scroll 0 0 #2d94c1;
+    border-radius: 100%;
+    bottom: auto;
+    height: 18px;
+    left: auto;
+    margin: 25px 0 0;
+    position: relative;
+    right: auto;
+    top: auto;
+    width: 18px;
+    z-index: 30;
+}
