@@ -1,28 +1,134 @@
-== README
+1. Use Puma as server
+By default, script/rails server uses WEBrick. The Rack adapter for WEBrick buffers all output in a way we cannot bypass.
+Puma is a good choise
+Add the line in the Gemfile
+gem 'puma'
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+2. Generating SSEs
+I’d like an object that knows how to format messages as SSE and emits those messages to the live stream. To do this, we’ll write a small class that decorates the output stream and knows how to dump objects as SSEs:
+require 'json'
 
-Things you may want to cover:
+module Reloader
+  class SSE
+    def initialize io
+      @io = io
+    end
 
-* Ruby version
+    def write object, options = {}
+      options.each do |k,v|
+        @io.write "#{k}: #{v}\n"
+      end
+      @io.write "data: #{JSON.dump(object)}\n\n"
+    end
 
-* System dependencies
+    def close
+      @io.close
+    end
+  end
+end
 
-* Configuration
+We’ll place this file under lib/reloader/sse.rb and require it from the status controller. In the controller, we’ll mix in ActionController::Live and try emitting some SSEs:
 
-* Database creation
+require 'reloader/sse'
 
-* Database initialization
+class StatusController < ApplicationController
+  include ActionController::Live
 
-* How to run the test suite
+  def index
+    # SSE expects the `text/event-stream` content type
+    response.headers['Content-Type'] = 'text/event-stream'
 
-* Services (job queues, cache servers, search engines, etc.)
+    sse = Reloader::SSE.new(response.stream)
+    
+    begin
+      sse.write({ :data => "ok" }, :event => 'initial')
+       
+      $pubnub.here_now(
+        :channel  => 'pubnub_room'
+      ) { |envelope| 
+        puts envelope.msg
+        sse.write(envelope.msg['uuids'], :event => 'here_now')
+      }
 
-* Deployment instructions
+      $pubnub.presence(
+        :channel  => 'pubnub_room'
+      ) { |envelope|
+        if envelope.msg['uuid'] && envelope.msg['action']
+          puts envelope.msg
+          sse.write([envelope.msg['uuid'], envelope.msg['action']], :event => 'presence')
+        end
+      }
+    rescue IOError
+      # When the client disconnects, we'll get an IOError on write
+    ensure
+      # sse.close
+    end
+  end
+end
 
-* ...
+Next, update your routes.rb to point at the new controller:
+get 'status' => 'status#index'
 
+3. Listening with JavaScript
+jQuery(document).ready(function() {
+  var h6_tags = $(".user-list > li").find('h6');	  	
+  setTimeout(function() {
+    var source = new EventSource('/status');
+    
+    source.addEventListener('presence', function(e) {
+      console.log("presence");
+      var arr = e.data.replace(/[\[\]'"]+/g,'').split(","); 
+      if (arr[1] == "join"){
+      	for(var i=0; i<h6_tags.length; i++){
+	  	  if(h6_tags.eq(i).html() == arr[0]) {
+	  		h6_tags.eq(i).next().html('Online');
+	  	  }		  		
+	    }
+      }      
+      if (arr[1] == "leave"){
+      	console.log("left");
+      	for(var i=0; i<h6_tags.length; i++){
+	  	  if(h6_tags.eq(i).html() == arr[0]) {
+	  		h6_tags.eq(i).next().html('Offline');
+	  	  }		  		
+	    }
+      }
+    });
 
-Please feel free to use a different markup language if you do not plan to run
-<tt>rake doc:app</tt>.
+    source.addEventListener('here_now', function(e) {
+      console.log("here_now");
+      var arr = e.data.replace(/[\[\]'"]+/g,'').split(",");  
+	  for(var i=0; i<h6_tags.length; i++){
+	  	if(jQuery.inArray( h6_tags.eq(i).html(), arr) != -1) {
+	  		h6_tags.eq(i).next().html('Online');
+	  	}
+	  		
+	  }
+    });
+    
+  }, 1);
+  
+});
+
+4. Test
+create your new account and login to this app. Then you can see the list of all users in this app. There is the word "Online" or "Offline"
+under the email of each user. 
+Select any offline user and create new pubnub with the user email
+
+pubnub = Pubnub.new(
+    :publish_key   => PUBLISH_KEY,
+    :subscribe_key => SUBSCRIBE_KEY,
+    :uuid => user.email
+)
+
+pubnub.subscribe(
+    :channel  => 'pubnub_room'
+) { |data| puts data.msg }
+
+Then you can know that the user is online immediately in the users page.
+
+pubnub.unsubscribe(
+    :channel  => 'pubnub_room'
+) { |data| puts data.msg }
+
+Then you can know that the user is offline immediately in the users page.
