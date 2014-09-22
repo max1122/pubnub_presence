@@ -5,7 +5,7 @@
 	      <%= image_tag("presence-user-blue.png", size: "58x58" ) %>
 	      <div class="content">
 	        <h6><%= user.email %></h6>
-	        <small >	        	
+	        <small>	        	
 	          Offline
 	        </small>
 	      </div>
@@ -13,3 +13,45 @@
     <% end %>
   </ul>
 </div>
+		
+<script type="text/javascript">
+  jQuery(document).ready(function() {
+  	  var h6_tags = $(".user-list > li").find('h6');	  	
+	  setTimeout(function() {
+	    var source = new EventSource('/status');
+	    
+	    source.addEventListener('presence', function(e) {
+	      console.log("presence");
+	      var arr = e.data.replace(/[\[\]'"]+/g,'').split(","); 
+	      if (arr[1] == "join"){
+	      	for(var i=0; i<h6_tags.length; i++){
+		  	  if(h6_tags.eq(i).html() == arr[0]) {
+		  		h6_tags.eq(i).next().html('Online');
+		  	  }		  		
+		    }
+	      }      
+	      if (arr[1] == "leave"){
+	      	console.log("left");
+	      	for(var i=0; i<h6_tags.length; i++){
+		  	  if(h6_tags.eq(i).html() == arr[0]) {
+		  		h6_tags.eq(i).next().html('Offline');
+		  	  }		  		
+		    }
+	      }
+	    });
+	
+	    source.addEventListener('here_now', function(e) {
+	      console.log("here_now");
+	      var arr = e.data.replace(/[\[\]'"]+/g,'').split(",");  
+		  for(var i=0; i<h6_tags.length; i++){
+		  	if(jQuery.inArray( h6_tags.eq(i).html(), arr) != -1) {
+		  		h6_tags.eq(i).next().html('Online');
+		  	}
+		  		
+		  }
+	    });
+	    
+	  }, 1);
+	  
+	});
+</script>
